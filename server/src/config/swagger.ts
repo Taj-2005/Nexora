@@ -80,6 +80,7 @@ These users exist after running the database seed. Use them to log in and try th
     { name: "Orders", description: "Orders" },
     { name: "Reviews", description: "Product reviews" },
     { name: "Admin", description: "Admin dashboard and management" },
+    { name: "Super Admin", description: "System owner / platform configuration (Super Admin only)" },
   ],
   components: {
     securitySchemes: {

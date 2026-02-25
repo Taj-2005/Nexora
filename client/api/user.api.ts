@@ -34,5 +34,5 @@ export const userApi = {
     apiClient.get<ApiResponse<unknown>>(`/api/users/${id}/cart`).then((r) => r.data),
 
   updateRole: (id: string, role: "ADMIN" | "CUSTOMER") =>
-    apiClient.patch<ApiResponse<ApiUser>>(`/api/users/${id}/role`, { role }).then((r) => r.data),
+    apiClient.patch<ApiResponse<ApiUser>>(`/api/super-admin/users/${id}/role`, { role }).then((r) => r.data),
 };

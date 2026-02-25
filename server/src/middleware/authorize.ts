@@ -1,7 +1,7 @@
 import { Response, NextFunction } from "express";
 import { AuthRequest } from "./authenticate";
 import { AppError } from "./errorHandler";
-import { type RoleType } from "../constants/roles";
+import { type RoleType, ADMIN_ROLES, SUPER_ADMIN_ONLY } from "../constants/roles";
 
 export function authorize(...allowedRoles: RoleType[]) {
   return (req: AuthRequest, _res: Response, next: NextFunction): void => {
@@ -16,3 +16,9 @@ export function authorize(...allowedRoles: RoleType[]) {
     next();
   };
 }
+
+/** Store Admin or Super Admin — manage products, orders, customers, reports. */
+export const requireAdmin = authorize(...ADMIN_ROLES);
+
+/** System Owner only — create/delete admins, system config, RBAC. */
+export const requireSuperAdmin = authorize(...SUPER_ADMIN_ONLY);

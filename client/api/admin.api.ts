@@ -28,7 +28,7 @@ export const adminApi = {
     apiClient.get<ApiResponse<{ status: string; _count: number }[]>>("/api/admin/orders/stats").then((r) => r.data),
 
   createAdmin: (data: { email: string; password: string; fullName?: string }) =>
-    apiClient.post<ApiResponse<{ id: string; email: string; fullName: string; role: unknown }>>("/api/admin/create-admin", data).then((r) => r.data),
+    apiClient.post<ApiResponse<{ id: string; email: string; fullName: string; role: unknown }>>("/api/super-admin/admins", data).then((r) => r.data),
 
   getLogs: (limit?: number) =>
     apiClient.get<ApiResponse<unknown[]>>("/api/admin/logs", { params: { limit } }).then((r) => r.data),

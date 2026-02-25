@@ -33,9 +33,22 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // Super Admin: require SUPER_ADMIN only
+  if (pathname.startsWith("/super-admin")) {
+    if (!role) {
+      const login = new URL("/login", request.url);
+      login.searchParams.set("redirect", pathname);
+      return NextResponse.redirect(login);
+    }
+    if (role !== "SUPER_ADMIN") {
+      return NextResponse.redirect(new URL("/unauthorized", request.url));
+    }
+    return NextResponse.next();
+  }
+
   return NextResponse.next();
 }
 
 export const config = {
-  matcher: ["/admin/:path*", "/profile", "/profile/:path*", "/orders", "/orders/:path*", "/checkout"],
+  matcher: ["/admin", "/admin/:path*", "/super-admin", "/super-admin/:path*", "/profile", "/profile/:path*", "/orders", "/orders/:path*", "/checkout"],
 };
