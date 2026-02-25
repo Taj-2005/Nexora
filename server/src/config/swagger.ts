@@ -17,7 +17,7 @@ This is the **ShopSmart API**: the backend for the ShopSmart eCommerce app. It i
 **What each section does:**
 
 - **Health** — Check if the API is running (no login required).
-- **Auth** — Register, log in, refresh token, log out. Login returns a JWT; you send that token with any request that requires a logged-in user.
+- **Auth** — Register, log in, refresh token, log out. Authentication is **cookie-based**: the server sets httpOnly cookies (access + refresh). No token is returned in the response body. Protected routes require the access token cookie (\`credentials: include\`).
 - **Users** — Get or update the current user profile. Admins can list and manage users.
 - **Categories** — List product categories. Admins can create or update categories.
 - **Products** — List and get products (and their reviews). Admins can create, update, or delete products.
@@ -26,37 +26,25 @@ This is the **ShopSmart API**: the backend for the ShopSmart eCommerce app. It i
 - **Reviews** — Add a product review (requires login). Admins can delete reviews.
 - **Admin** — Dashboard, stats, revenue, logs. Only admin and super_admin roles can use these.
 
-Endpoints that require a logged-in user are marked with a lock. For those you must send a valid JWT in the \`Authorization\` header.
+Endpoints that require a logged-in user are marked with a lock. The client must send credentials (cookies) with each request. The server reads the JWT from cookies only.
 
 ---
 
-## Authentication (how to get and use a token)
+## Authentication (cookie-based)
 
-**1. What you need**  
-Endpoints with a lock icon require a **JWT**. You get it by logging in, then send it on every request that needs authentication.
+**1. Overview**  
+Login, register, and refresh set **httpOnly cookies** via Set-Cookie. No token in JSON body. Use \`credentials: "include"\` (fetch) or \`withCredentials: true\` (Axios).
 
-**2. Get a token**  
-Call **POST /api/auth/login** with a JSON body containing \`email\` and \`password\`. The response includes \`accessToken\` and \`expiresIn\` (seconds). Use \`accessToken\` as your JWT.
+**2. Login** — **POST /api/auth/login** with \`email\` and \`password\`. Response: \`{ "success": true, "user": { ... } }\`. Server sets \`accessToken\` and \`refreshToken\` cookies. Status: 200, 401, 423.
 
-**Example (cURL):**
+**3. Protected routes** — Server validates **access token cookie**. If missing or invalid: 401. Do not pass token in Authorization header or body.
 
-\`\`\`bash
-curl -X POST http://localhost:4000/api/auth/login \\
-  -H "Content-Type: application/json" \\
-  -d '{"email":"customer@shopsmart.com","password":"Customer1!"}'
-\`\`\`
+**4. Refresh** — **POST /api/auth/refresh** (no body). Server reads \`refreshToken\` cookie, sets new cookies. Response: \`{ "success": true, "user": { ... } }\`. Status: 200, 400, 401.
 
-**3. Send the token**  
-Add this header to your request:
+**5. Logout** — **POST /api/auth/logout**. Server clears auth cookies. Response: \`{ "success": true, "message": "Logged out" }\`. Status: 200.
 
-\`\`\`
-Authorization: Bearer <paste your accessToken here>
-\`\`\`
-
-**4. In Swagger UI**  
-Click **Authorize**, paste only the token value (do not type "Bearer"), then Authorize. Swagger will send the token for all locked endpoints.
-
-**5. Test accounts**  
+**6. Test accounts**  
+These users exist after running the database seed.  
 These users exist after running the database seed. Use them to log in and try the API:
 
 | Role        | Email                    | Password   |
@@ -85,10 +73,10 @@ These users exist after running the database seed. Use them to log in and try th
   components: {
     securitySchemes: {
       bearerAuth: {
-        type: "http",
-        scheme: "bearer",
-        bearerFormat: "JWT",
-        description: "JWT access token from login or register. Use: Authorization: Bearer <token>",
+        type: "apiKey",
+        in: "cookie",
+        name: "accessToken",
+        description: "Cookie-based JWT. Set by server on login/refresh. Send credentials with each request.",
       },
     },
     schemas: {
@@ -115,13 +103,12 @@ These users exist after running the database seed. Use them to log in and try th
       },
       AuthResponse: {
         type: "object",
-        required: ["success", "accessToken", "expiresIn", "user"],
+        required: ["success", "user"],
         properties: {
           success: { type: "boolean", example: true },
-          accessToken: { type: "string", description: "JWT access token" },
-          expiresIn: { type: "integer", description: "Token TTL in seconds", example: 3600 },
           user: { $ref: "#/components/schemas/User" },
         },
+        description: "Login, register, and refresh return this. Tokens are set in httpOnly cookies only.",
       },
       Category: {
         type: "object",

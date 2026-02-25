@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import { prisma } from "../config/prisma";
 import { verifyAccessToken, type AccessPayload } from "../utils/jwt";
+import { env } from "../config/env";
 import { AppError } from "./errorHandler";
 
 export type AuthRequest = Request & {
@@ -12,8 +13,7 @@ export async function authenticate(
   _res: Response,
   next: NextFunction
 ): Promise<void> {
-  const authHeader = req.headers.authorization;
-  const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
+  const token = req.cookies?.[env.COOKIE_ACCESS_NAME] ?? null;
   if (!token) {
     next(new AppError(401, "Authentication required", "UNAUTHORIZED"));
     return;
@@ -41,8 +41,7 @@ export async function authenticate(
 }
 
 export function optionalAuth(req: AuthRequest, res: Response, next: NextFunction): void {
-  const authHeader = req.headers.authorization;
-  const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
+  const token = req.cookies?.[env.COOKIE_ACCESS_NAME] ?? null;
   if (!token) {
     next();
     return;

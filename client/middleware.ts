@@ -1,51 +1,13 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { ROLE_COOKIE_NAME } from "./lib/role-cookie";
 
-const ADMIN_ROLES = ["ADMIN", "SUPER_ADMIN"];
-
-export function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl;
-  const role = request.cookies.get(ROLE_COOKIE_NAME)?.value ?? null;
-
-  // Protected: require any authenticated user (profile, orders, checkout)
-  const userOnlyPaths = ["/profile", "/orders", "/checkout"];
-  const isUserOnly = userOnlyPaths.some((p) => pathname === p || pathname.startsWith(p + "/"));
-  if (isUserOnly) {
-    if (!role) {
-      const login = new URL("/login", request.url);
-      login.searchParams.set("redirect", pathname);
-      return NextResponse.redirect(login);
-    }
-    return NextResponse.next();
-  }
-
-  // Admin: require ADMIN or SUPER_ADMIN
-  if (pathname.startsWith("/admin")) {
-    if (!role) {
-      const login = new URL("/login", request.url);
-      login.searchParams.set("redirect", pathname);
-      return NextResponse.redirect(login);
-    }
-    if (!ADMIN_ROLES.includes(role)) {
-      return NextResponse.redirect(new URL("/unauthorized", request.url));
-    }
-    return NextResponse.next();
-  }
-
-  // Super Admin: require SUPER_ADMIN only
-  if (pathname.startsWith("/super-admin")) {
-    if (!role) {
-      const login = new URL("/login", request.url);
-      login.searchParams.set("redirect", pathname);
-      return NextResponse.redirect(login);
-    }
-    if (role !== "SUPER_ADMIN") {
-      return NextResponse.redirect(new URL("/unauthorized", request.url));
-    }
-    return NextResponse.next();
-  }
-
+/**
+ * Cookie-based auth: tokens live in httpOnly cookies on the API domain.
+ * With cross-origin frontend we cannot read those cookies here, so route
+ * protection is done client-side via ProtectedRoute (auth context + API).
+ * This middleware passes through; no cookie checks.
+ */
+export function middleware(_request: NextRequest) {
   return NextResponse.next();
 }
 

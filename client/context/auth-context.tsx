@@ -11,8 +11,7 @@ import {
 } from "react";
 import { useRouter } from "next/navigation";
 import type { User, UserRole } from "@/types/auth";
-import { setAccessToken, clearAccessToken, setOnUnauthorized } from "@/lib/auth-token";
-import { setRoleCookie, clearRoleCookie } from "@/lib/role-cookie";
+import { setOnUnauthorized } from "@/lib/auth-token";
 import { authApi, type AuthUser } from "@/api/auth.api";
 import { toApiError } from "@/api/axios";
 
@@ -71,22 +70,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const refreshUser = useCallback(async () => {
     try {
       const data = await authApi.refresh();
-      if (data.success && data.accessToken && data.user) {
-        setAccessToken(data.accessToken, data.expiresIn);
-        setRoleCookie(data.user.role);
-        setUserState(toUser(data.user));
-      }
+      if (data.success && data.user) setUserState(toUser(data.user));
+      else setUserState(null);
     } catch {
-      clearAccessToken();
-      clearRoleCookie();
       setUserState(null);
     }
   }, []);
 
   useEffect(() => {
     setOnUnauthorized(() => {
-      clearAccessToken();
-      clearRoleCookie();
       setUserState(null);
       if (typeof window !== "undefined") router.replace("/login");
     });
@@ -97,17 +89,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     authApi
       .refresh()
       .then((data) => {
-        if (data.success && data.accessToken && data.user) {
-          setAccessToken(data.accessToken, data.expiresIn);
-          setRoleCookie(data.user.role);
-          setUserState(toUser(data.user));
-        }
+        if (data.success && data.user) setUserState(toUser(data.user));
+        else setUserState(null);
       })
-      .catch(() => {
-        clearAccessToken();
-        clearRoleCookie();
-        setUserState(null);
-      })
+      .catch(() => setUserState(null))
       .finally(() => setIsInitialized(true));
   }, []);
 
@@ -117,11 +102,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setIsLoading(true);
       try {
         const data = await authApi.login(email, password);
-        if (data.success && data.accessToken && data.user) {
-          setAccessToken(data.accessToken, data.expiresIn);
-          setRoleCookie(data.user.role);
-          setUserState(toUser(data.user));
-        }
+        if (data.success && data.user) setUserState(toUser(data.user));
       } catch (e) {
         const err = toApiError(e);
         setError(err.message ?? "Login failed");
@@ -149,11 +130,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           password,
           roleRequest: role === "admin_request" ? "admin" : undefined,
         });
-        if (data.success && data.accessToken && data.user) {
-          setAccessToken(data.accessToken, data.expiresIn);
-          setRoleCookie(data.user.role);
-          setUserState(toUser(data.user));
-        }
+        if (data.success && data.user) setUserState(toUser(data.user));
       } catch (e) {
         const err = toApiError(e);
         setError(err.message ?? "Registration failed");
@@ -172,8 +149,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch {
       // ignore
     } finally {
-      clearAccessToken();
-      clearRoleCookie();
       setUserState(null);
     }
   }, []);
