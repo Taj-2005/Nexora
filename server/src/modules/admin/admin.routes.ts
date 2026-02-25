@@ -1,15 +1,17 @@
 import { Router } from "express";
+import { OrderStatus } from "@prisma/client";
 import { authenticate } from "../../middleware/authenticate";
 import { authorize } from "../../middleware/authorize";
 import { prisma } from "../../config/prisma";
 import { AppError } from "../../middleware/errorHandler";
 import type { AuthRequest } from "../../middleware/authenticate";
 import { hashPassword } from "../../utils/hash";
+import { ADMIN_ROLES, SUPER_ADMIN_ONLY } from "../../constants/roles";
 
 const router = Router();
 
 router.use(authenticate);
-router.use(authorize("ADMIN", "SUPER_ADMIN"));
+router.use(authorize(...ADMIN_ROLES));
 
 router.get("/dashboard", async (_req, res, next) => {
   try {
@@ -90,7 +92,53 @@ router.get("/orders/stats", async (_req, res, next) => {
   }
 });
 
-router.post("/create-admin", authorize("SUPER_ADMIN"), async (req: AuthRequest, res, next) => {
+router.get("/orders", async (req, res, next) => {
+  try {
+    const limit = Math.min(Number(req.query.limit) || 50, 100);
+    const status = req.query.status as string | undefined;
+    const orders = await prisma.order.findMany({
+      where: status ? { status: status as OrderStatus } : undefined,
+      include: {
+        items: { include: { product: { select: { id: true, name: true, image: true } } } },
+        user: { select: { id: true, email: true, fullName: true } },
+      },
+      orderBy: { createdAt: "desc" },
+      take: limit,
+    });
+    const data = orders.map((o) => ({
+      ...o,
+      subtotal: Number(o.subtotal),
+      discount: Number(o.discount),
+      shipping: Number(o.shipping),
+      total: Number(o.total),
+      items: o.items.map((i) => ({ ...i, price: Number(i.price) })),
+    }));
+    res.json({ success: true, data });
+  } catch (e) {
+    next(e);
+  }
+});
+
+router.get("/reviews", async (req, res, next) => {
+  try {
+    const limit = Math.min(Number(req.query.limit) || 50, 100);
+    const status = req.query.status as string | undefined;
+    const reviews = await prisma.review.findMany({
+      where: status ? { status } : undefined,
+      include: {
+        user: { select: { id: true, fullName: true, email: true } },
+        product: { select: { id: true, name: true, slug: true } },
+      },
+      orderBy: { createdAt: "desc" },
+      take: limit,
+    });
+    res.json({ success: true, data: reviews });
+  } catch (e) {
+    next(e);
+  }
+});
+
+router.post("/create-admin", authorize(...SUPER_ADMIN_ONLY), async (req: AuthRequest, res, next) => {
   try {
     const { email, password, fullName } = req.body;
     if (!email || !password) return next(new AppError(400, "email and password required", "VALIDATION_ERROR"));

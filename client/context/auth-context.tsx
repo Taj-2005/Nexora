@@ -12,6 +12,7 @@ import {
 import { useRouter } from "next/navigation";
 import type { User, UserRole } from "@/types/auth";
 import { setAccessToken, clearAccessToken, setOnUnauthorized } from "@/lib/auth-token";
+import { setRoleCookie, clearRoleCookie } from "@/lib/role-cookie";
 import { authApi, type AuthUser } from "@/api/auth.api";
 import { toApiError } from "@/api/axios";
 
@@ -72,10 +73,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const data = await authApi.refresh();
       if (data.success && data.accessToken && data.user) {
         setAccessToken(data.accessToken, data.expiresIn);
+        setRoleCookie(data.user.role);
         setUserState(toUser(data.user));
       }
     } catch {
       clearAccessToken();
+      clearRoleCookie();
       setUserState(null);
     }
   }, []);
@@ -83,6 +86,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     setOnUnauthorized(() => {
       clearAccessToken();
+      clearRoleCookie();
       setUserState(null);
       if (typeof window !== "undefined") router.replace("/login");
     });
@@ -95,11 +99,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .then((data) => {
         if (data.success && data.accessToken && data.user) {
           setAccessToken(data.accessToken, data.expiresIn);
+          setRoleCookie(data.user.role);
           setUserState(toUser(data.user));
         }
       })
       .catch(() => {
         clearAccessToken();
+        clearRoleCookie();
         setUserState(null);
       })
       .finally(() => setIsInitialized(true));
@@ -113,6 +119,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const data = await authApi.login(email, password);
         if (data.success && data.accessToken && data.user) {
           setAccessToken(data.accessToken, data.expiresIn);
+          setRoleCookie(data.user.role);
           setUserState(toUser(data.user));
         }
       } catch (e) {
@@ -144,6 +151,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         });
         if (data.success && data.accessToken && data.user) {
           setAccessToken(data.accessToken, data.expiresIn);
+          setRoleCookie(data.user.role);
           setUserState(toUser(data.user));
         }
       } catch (e) {
@@ -165,6 +173,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // ignore
     } finally {
       clearAccessToken();
+      clearRoleCookie();
       setUserState(null);
     }
   }, []);

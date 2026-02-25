@@ -4,10 +4,12 @@ import { authorize } from "../../middleware/authorize";
 import { prisma } from "../../config/prisma";
 import { AppError } from "../../middleware/errorHandler";
 import type { AuthRequest } from "../../middleware/authenticate";
+import { SUPER_ADMIN_ONLY, ADMIN_ROLES } from "../../constants/roles";
+import { RoleType } from "@prisma/client";
 
 const router = Router();
 
-router.get("/", authenticate, authorize("ADMIN", "SUPER_ADMIN"), async (req, res, next) => {
+router.get("/", authenticate, authorize(...ADMIN_ROLES), async (req, res, next) => {
   try {
     const users = await prisma.user.findMany({
       where: { deletedAt: null },
@@ -48,6 +50,25 @@ router.patch("/:id", authenticate, async (req: AuthRequest, res, next) => {
       where: { id },
       data: { ...(fullName != null && { fullName }), ...(avatarUrl != null && { avatarUrl }) },
       select: { id: true, email: true, fullName: true, role: true, avatarUrl: true },
+    });
+    res.json({ success: true, data: user });
+  } catch (e) {
+    next(e);
+  }
+});
+
+router.patch("/:id/role", authenticate, authorize(...SUPER_ADMIN_ONLY), async (req: AuthRequest, res, next) => {
+  try {
+    const { id } = req.params;
+    const { role } = req.body as { role?: string };
+    const allowedRoles = ["ADMIN", "CUSTOMER"];
+    if (!role || !allowedRoles.includes(role)) return next(new AppError(400, "role must be one of: " + allowedRoles.join(", "), "VALIDATION_ERROR"));
+    const roleRecord = await prisma.role.findUnique({ where: { name: role as RoleType } });
+    if (!roleRecord) return next(new AppError(400, "Role not found", "NOT_FOUND"));
+    const user = await prisma.user.update({
+      where: { id, deletedAt: null },
+      data: { roleId: roleRecord.id },
+      select: { id: true, email: true, fullName: true, role: true },
     });
     res.json({ success: true, data: user });
   } catch (e) {
